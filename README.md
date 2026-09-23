@@ -1,327 +1,290 @@
-# 🔗 Connectify — Instagram-Style Social Media Platform
+# Social_Media
 
-<div align="center">
+A production-shaped full-stack social network: **Django 5 + DRF** for the core app,
+**FastAPI** for an isolated async AI microservice, **Celery + Redis** so no request ever
+waits on a model provider, and **PostgreSQL** (SQLite for local dev).
 
-![Connectify](https://img.shields.io/badge/Connectify-Social%20Platform-0095f6?style=for-the-badge&logo=instagram&logoColor=white)
-![Django](https://img.shields.io/badge/Django-6.0.1-092E20?style=for-the-badge&logo=django&logoColor=white)
-![Python](https://img.shields.io/badge/Python-3.14-3776AB?style=for-the-badge&logo=python&logoColor=white)
-![SQLite](https://img.shields.io/badge/SQLite-Database-003B57?style=for-the-badge&logo=sqlite&logoColor=white)
-![License](https://img.shields.io/badge/License-MIT-green?style=for-the-badge)
-
-**A full-featured Instagram-inspired social media platform built with Django**
-
-[🌐 Live Demo](#) • [📸 Screenshots](#-screenshots) • [⚡ Features](#-features) • [🚀 Installation](#-installation)
-
-</div>
+Two deployable services, one repo, independent lifecycles.
 
 ---
 
-## 📖 About
-
-**Connectify** is a modern, full-stack social media platform inspired by Instagram, built using **Django 6.0.1** and **Python 3.14**. It features a stunning dark-mode UI with a pure black aesthetic, real-time interactions, stories, reels, direct messaging, and all the core features you'd expect from a professional social media application.
-
-> Built as a portfolio project to demonstrate full-stack web development skills with Django.
-
----
-
-## ✨ Features
-
-### 📱 Core Social Features
-| Feature | Status |
-|---------|--------|
-| User Registration & Login | ✅ Done |
-| Instagram-Style Dark UI | ✅ Done |
-| Post Photos & Videos (Reels) | ✅ Done |
-| Multi-Image Carousel Posts | ✅ Done |
-| Like & Unlike Posts | ✅ Done |
-| Comment on Posts | ✅ Done |
-| Reply to Comments (Threaded) | ✅ Done |
-| Like Individual Comments | ✅ Done |
-| Save / Bookmark Posts | ✅ Done |
-| Share Posts (Copy Link) | ✅ Done |
-| Edit & Archive Posts | ✅ Done |
-| Hashtag Support (#tag) | ✅ Done |
-| @Mention Users | ✅ Done |
-| Location Tags on Posts | ✅ Done |
-| Photo Filters (B&W, Sepia, etc.) | ✅ Done |
-| Double-Tap to Like (Mobile) | ✅ Done |
-
-### 👤 Profile System
-| Feature | Status |
-|---------|--------|
-| User Profiles with Avatar | ✅ Done |
-| Followers / Following System | ✅ Done |
-| Verified Badge (✓ Blue Check) | ✅ Done |
-| Private Account Mode | ✅ Done |
-| Story Highlights on Profile | ✅ Done |
-| Edit Profile | ✅ Done |
-| Followers & Following Lists | ✅ Done |
-| Mutual Followers Display | ✅ Done |
-| Block / Unblock Users | ✅ Done |
-| Close Friends List | ✅ Done |
-| Saved Posts Collection | ✅ Done |
-| Archived Posts | ✅ Done |
-
-### 📖 Stories (24-Hour Content)
-| Feature | Status |
-|---------|--------|
-| Create Photo Stories | ✅ Done |
-| 24-Hour Auto-Expiry | ✅ Done |
-| Story Viewers List | ✅ Done |
-| Emoji Reactions to Stories | ✅ Done |
-| Story Polls (Vote A/B) | ✅ Done |
-| Music Info Display | ✅ Done |
-| Story Highlights (Permanent) | ✅ Done |
-
-### 🎬 Reels (Short Videos)
-| Feature | Status |
-|---------|--------|
-| Upload Short Videos | ✅ Done |
-| Dedicated Reels Feed | ✅ Done |
-| Like, Comment, Share Reels | ✅ Done |
-| Auto-detect Video Posts | ✅ Done |
-
-### 💬 Direct Messaging
-| Feature | Status |
-|---------|--------|
-| 1-on-1 Private Chat | ✅ Done |
-| Send Images in DMs | ✅ Done |
-| Share Posts via DMs | ✅ Done |
-| Message Reactions (Double-Tap ❤️) | ✅ Done |
-| Read Receipts (✓ Sent / ✓✓ Seen) | ✅ Done |
-| Unread Message Count | ✅ Done |
-
-### 🔔 Notifications
-| Feature | Status |
-|---------|--------|
-| Like Notifications | ✅ Done |
-| Comment Notifications | ✅ Done |
-| Reply Notifications | ✅ Done |
-| Follow Notifications | ✅ Done |
-| @Mention Notifications | ✅ Done |
-| Story Reaction Notifications | ✅ Done |
-| Real-Time Polling | ✅ Done |
-
-### ⚙️ Settings & Privacy
-| Feature | Status |
-|---------|--------|
-| Change Password | ✅ Done |
-| Private / Public Account | ✅ Done |
-| Block Users | ✅ Done |
-| Delete Account | ✅ Done |
-
----
-
-## 📸 Screenshots
-
-<div align="center">
-
-| Login Page | Feed |
-|-----------|------|
-| ![Login](https://via.placeholder.com/400x300/000000/ffffff?text=Login+Page) | ![Feed](https://via.placeholder.com/400x300/000000/ffffff?text=Feed+Page) |
-
-| Profile | Messages |
-|---------|---------|
-| ![Profile](https://via.placeholder.com/400x300/000000/ffffff?text=Profile+Page) | ![Messages](https://via.placeholder.com/400x300/000000/ffffff?text=Messages+Page) |
-
-</div>
-
-> 💡 *Replace these placeholder images with actual screenshots of your app*
-
----
-
-## 🛠️ Tech Stack
+## Architecture
 
 ```
-Frontend:    HTML5, CSS3 (Vanilla), JavaScript (ES6+)
-Backend:     Python 3.14, Django 6.0.1
-Database:    SQLite (Dev) / PostgreSQL (Production)
-Storage:     Local Media (Dev) / AWS S3 / Cloudinary (Production)
-UI Design:   Custom Instagram-inspired Dark Mode CSS
+                          ┌──────────────────────────────┐
+        Browser ────────▶ │  Django (templates + BS5)    │
+        (session auth)    │  social_media/               │
+                          │  ├─ accounts   JWT + profile │
+        API client ─────▶ │  ├─ posts      CRUD + feed   │
+        (Bearer JWT)      │  ├─ social     follow/like/  │
+                          │  │             comment       │
+                          │  ├─ notifications  inbox     │
+                          │  └─ ai_companion  client     │
+                          └──────┬───────────────┬───────┘
+                                 │               │
+                       Celery task (async)       │ httpx (sync, timed)
+                                 │               │
+                          ┌──────▼──────┐        │
+                          │ Redis broker│        │
+                          └──────┬──────┘        │
+                                 │               │
+                    ┌────────────▼───┐           │
+                    │ Celery worker  │           │
+                    │  queue: ai     │           │
+                    └────────────┬───┘           │
+                                 │               │
+                                 │  POST /moderate
+                                 │  POST /caption      POST /mood-check
+                                 ▼               ▼
+                    ┌───────────────────────────────────────┐
+                    │ FastAPI ai_service (async)            │
+                    │  X-API-Key auth + per-key rate limit  │
+                    │  ├─ provider: openai                  │
+                    │  ├─ provider: huggingface             │
+                    │  └─ provider: heuristic (fallback)    │
+                    └───────────────┬───────────────────────┘
+                                    │ httpx.AsyncClient (timeouts)
+                                    ▼
+                        OpenAI  /  HF Inference API
+
+  Celery beat ──nightly 02:30──▶ mood sweep ──▶ MoodCheck ──▶ 3-day streak? ──▶ nudge
 ```
+
+**Why this split.** Moderation and generation are slow, flaky and paid. Keeping them in a
+separate async service means a model-provider outage degrades one feature instead of taking
+the whole site down, and the AI service can be scaled, rate-limited and cost-audited on its
+own. Django never blocks on it: post creation enqueues a Celery task and returns.
 
 ---
 
-## 🚀 Installation & Local Setup
+## Features
 
-### Prerequisites
-- Python 3.10+
-- pip
-- git
+| Area | What's implemented |
+|---|---|
+| **accounts** | Signup/login (username *or* email), JWT access/refresh with rotation + blacklist, profile with avatar, bio, private accounts, change password |
+| **posts** | Create/edit/delete (soft delete), image upload with type+size validation, home feed, explore, hashtags, edit re-triggers moderation |
+| **social** | Follow/unfollow, follow *requests* for private accounts (accept/reject), likes (idempotent), threaded comments, notifications on every interaction |
+| **notifications** | DB-backed inbox, unread badge (server-rendered + polled), mark read / mark all read, moderation + nudge notifications |
+| **ai_companion** | Post moderation pipeline, caption suggestions, nightly mood sweep, dismissible wellbeing nudge, per-user rate-limited proxy endpoints |
+| **Cross-cutting** | Structured JSON logs with request-id correlation, uniform DRF error envelope, DRF throttles, CORS, OpenAPI schema at `/api/docs/`, 160 tests |
 
-### 1. Clone the Repository
+---
+
+## Quickstart (no Docker)
+
 ```bash
-git clone https://github.com/YOUR_USERNAME/connectify.git
-cd connectify
-```
+# 1. Dependencies (Python 3.11+)
+python -m venv .venv && source .venv/bin/activate
+pip install -r requirements-dev.txt
+pip install -r ai_service/requirements-dev.txt
 
-### 2. Create Virtual Environment
-```bash
-# Windows
-python -m venv venv
-venv\Scripts\activate
+# 2. Config
+cp .env.example .env                       # edit DJANGO_SECRET_KEY
+cp ai_service/.env.example ai_service/.env # keep API_KEYS in sync with AI_SERVICE_API_KEY
 
-# macOS / Linux
-python3 -m venv venv
-source venv/bin/activate
-```
-
-### 3. Install Dependencies
-```bash
-pip install -r requirements.txt
-```
-
-### 4. Run Migrations
-```bash
+# 3. Database (SQLite by default; set DATABASE_URL for Postgres)
 python manage.py migrate
+
+# 4. Demo data (optional) — runs through the real moderation pipeline
+python manage.py seed_demo
+# login: rajeev / DemoPass!234
+
+# 5. Run the AI service, then Django (two terminals)
+cd ai_service && uvicorn app.main:app --host 0.0.0.0 --port 8001 --reload
+python manage.py runserver 0.0.0.0:8000
 ```
 
-### 5. Create Admin User
+| URL | What |
+|---|---|
+| http://localhost:8000 | Web UI (feed, profile, compose, notifications, check-ins) |
+| http://localhost:8000/api/docs/ | OpenAPI / Swagger UI |
+| http://localhost:8000/api/v1/ | JSON API |
+| http://localhost:8000/healthz | Django health probe |
+| http://localhost:8001/docs | AI service docs |
+| http://localhost:8001/health | AI service probe |
+
+### With real async workers
+
 ```bash
-python manage.py createsuperuser
+docker run -p 6379:6379 redis:7-alpine          # or use docker compose
+export CELERY_TASK_ALWAYS_EAGER=False
+celery -A social_media worker -l info -Q default,ai
+celery -A social_media beat   -l info            # nightly mood sweep
 ```
 
-### 6. Run Development Server
+### Docker Compose (everything at once)
+
 ```bash
-python manage.py runserver
-```
-
-### 7. Open in Browser
-```
-http://127.0.0.1:8000/
+docker compose up --build     # web:8000  ai:8001  postgres:5432  redis:6379
 ```
 
 ---
 
-## 📁 Project Structure
+## API
+
+All under `/api/v1/`. Auth: `Authorization: Bearer <access>`.
+
+| Method | Path | Notes |
+|---|---|---|
+| POST | `/auth/register/` | Returns user + JWT pair |
+| POST | `/auth/login/` | Username **or** email |
+| POST | `/auth/token/refresh/` | Rotates the refresh token |
+| POST | `/auth/logout/` | Blacklists the refresh token |
+| GET/PATCH | `/auth/me/` | Own profile |
+| POST | `/auth/me/password/` | Change password |
+| GET | `/auth/users/<username>/` | Public profile (email never exposed) |
+| GET | `/feed/` | Following + own posts |
+| GET/POST | `/posts/` | Explore list / create (queues moderation) |
+| GET/PATCH/DELETE | `/posts/<id>/` | Detail / edit / soft delete |
+| GET | `/posts/<id>/moderation/` | Audit trail (author + staff only) |
+| POST | `/posts/<id>/like/` | Idempotent toggle |
+| GET/POST | `/posts/<id>/comments/` | List / add |
+| POST | `/users/<username>/follow/` | Follow → unfollow → requested |
+| GET | `/follow-requests/` | Pending requests |
+| POST | `/follow-requests/<id>/accept|reject/` | Decide |
+| GET | `/notifications/` | `?unread=1` filter |
+| GET | `/notifications/unread-count/` | Polled by the navbar |
+| POST | `/notifications/<id>/read/`, `/notifications/read-all/` | |
+| POST | `/ai/caption/` | 2-3 suggestions (rate limited) |
+| POST | `/ai/moderate/` | Dry-run check, creates nothing |
+| GET | `/ai/mood/` | Own mood history + active nudge |
+| GET/POST | `/ai/nudge/`, `/ai/nudge/<id>/dismiss/` | Wellbeing nudge |
+
+### AI microservice (internal, `X-API-Key` required)
+
+| Method | Path | Request → Response |
+|---|---|---|
+| POST | `/moderate` | `{text, post_id?, language}` → `{is_safe, flags[], scores[], confidence, reason, provider, degraded}` |
+| POST | `/caption` | `{idea, tone?, count}` → `{suggestions[], provider, degraded}` |
+| POST | `/mood-check` | `{texts[], user_id?}` → `{mood_signal, suggestion, posts_analyzed, …, disclaimer}` |
+| GET | `/health` | public liveness |
+
+---
+
+## The three AI flows
+
+**1. Moderation** — `posts.services.create_post()` writes the post as `pending`, then
+`moderate_post_task.delay()` queues the check. The worker calls `/moderate` and
+`apply_moderation_verdict()` transitions the state:
 
 ```
-connectify/
-│
-├── connectify/          # Main Django project settings
-│   ├── settings.py
-│   ├── urls.py
-│   └── wsgi.py
-│
-├── accounts/            # User auth, profiles, follow system
-├── posts/               # Feed, posts, likes, comments, reels
-├── stories/             # Stories, highlights, reactions, polls
-├── messaging/           # Direct messages, reactions, seen
-├── notifications/       # All notification types
-│
-├── templates/           # All HTML templates
-│   ├── base.html
-│   ├── accounts/
-│   ├── posts/
-│   ├── stories/
-│   └── messaging/
-│
-├── static/
-│   ├── css/style.css    # Full Instagram-style CSS (1900+ lines)
-│   └── js/app.js        # Interactive JS (AJAX, polling, animations)
-│
-├── media/               # User uploaded files
-├── requirements.txt
-└── manage.py
+pending ──safe──▶ approved
+pending ──unsafe──▶ flagged   (published, author told why)      MODERATION_POLICY=auto_publish
+pending ──unsafe──▶ held      (not on any feed until reviewed)  MODERATION_POLICY=hold_unsafe
 ```
 
+Nothing is ever silently dropped: `moderation_reason` is always recorded, the author gets a
+notification, and staff can approve from the admin. If the AI service itself is down the task
+retries with backoff and then applies `MODERATION_FAILURE_POLICY` — `fail_open` publishes but
+keeps the post flagged and schedules a re-check; `fail_closed` holds it.
+
+**2. Captions** — the compose page calls `/api/v1/ai/caption/`, which proxies to `/caption`.
+Throttled at 20/user/hour on the Django side and again per API key on the service side.
+
+**3. Nightly mood sweep** — Celery beat runs `run_mood_check_for_active_users` at 02:30,
+fanning out one `check_user_mood_task` per active user. Each stores a `MoodCheck`. A nudge is
+created **only** when:
+
+* the signal is negative for `MOOD_NEGATIVE_STREAK_THRESHOLD` (default **3**) consecutive checks, **and**
+* no nudge was created in the last `NUDGE_COOLDOWN_DAYS` (default **7**) days.
+
+The nudge is a single, dismissible, non-blocking card ("Kaise ho? … this is not a diagnosis")
+with a link to [findahelpline.com](https://findahelpline.com). It never diagnoses, never
+labels, never blocks the user, and the mood history is visible only to its owner.
+
 ---
 
-## 🌐 Deployment
+## Configuration
 
-### Deploy to PythonAnywhere (Free)
-1. Create account at [pythonanywhere.com](https://www.pythonanywhere.com)
-2. Clone this repo in their Bash console
-3. Set up virtualenv and install requirements
-4. Configure WSGI file
-5. Set `DEBUG = False` and `ALLOWED_HOSTS`
-6. Done! Your site is live at `username.pythonanywhere.com`
+All secrets come from the environment (`python-decouple` on the Django side,
+`pydantic-settings` on the AI side). See [`.env.example`](.env.example) and
+[`ai_service/.env.example`](ai_service/.env.example).
 
-### Deploy to Railway
-1. Push to GitHub
-2. Connect at [railway.app](https://railway.app)
-3. Add PostgreSQL database
-4. Set environment variables
-5. Deploy!
+| Variable | Default | Meaning |
+|---|---|---|
+| `DJANGO_ENV` | `dev` | `dev` or `prod` settings module |
+| `DJANGO_SECRET_KEY` | dev placeholder | **Required in prod** — boot fails without it |
+| `DATABASE_URL` | SQLite | Postgres DSN in production |
+| `REDIS_URL` / `CELERY_BROKER_URL` | `redis://localhost:6379/0` | Broker + result backend |
+| `CELERY_TASK_ALWAYS_EAGER` | `True` (dev) | Run tasks inline; set `False` with a real broker |
+| `AI_SERVICE_BASE_URL` / `AI_SERVICE_API_KEY` | localhost | Django → AI service |
+| `AI_RATE_LIMIT_PER_USER` | `20/hour` | Django-side AI budget |
+| `MODERATION_POLICY` | `auto_publish` | `hold_unsafe` to hold instead |
+| `MODERATION_FAILURE_POLICY` | `fail_open` | `fail_closed` to hold on outage |
+| `API_KEYS` (AI service) | dev placeholder | Comma separated internal keys |
+| `PROVIDER` | `heuristic` | `openai` / `huggingface` / `heuristic` |
+| `ALLOW_HEURISTIC_FALLBACK` | `True` | Degrade to the local model on provider failure |
+| `TOXICITY_THRESHOLD` / `SPAM_THRESHOLD` | `0.60` / `0.70` | Flag thresholds |
+
+> **Gotcha:** `python-decouple` does *not* strip inline comments — keep `#` comments on
+> their own line, otherwise the comment becomes part of the value.
 
 ---
 
-## 🔐 Environment Variables (Production)
+## Tests & lint
 
-```env
-SECRET_KEY=your-super-secret-key-here
-DEBUG=False
-ALLOWED_HOSTS=yourdomain.com,www.yourdomain.com
-DATABASE_URL=postgresql://user:pass@host/dbname
+```bash
+pytest                                   # 106 Django tests
+cd ai_service && pytest                  # 54 AI service tests
+ruff check .                             # lint (both configs)
+python manage.py check
+python manage.py makemigrations --check --dry-run
 ```
 
----
+Django tests run with `CELERY_TASK_ALWAYS_EAGER=True`, so the **real** task code executes
+inline; the AI service is replaced by an `httpx.MockTransport`, so the real client (headers,
+retries, timeouts, error mapping) is still exercised. The AI service tests use
+`fastapi.TestClient` with no network access.
 
-## 🤝 Contributing
-
-Contributions are welcome! Feel free to:
-
-1. Fork the project
-2. Create a feature branch (`git checkout -b feature/AmazingFeature`)
-3. Commit your changes (`git commit -m 'Add AmazingFeature'`)
-4. Push to branch (`git push origin feature/AmazingFeature`)
-5. Open a Pull Request
+Covered: JWT lifecycle incl. blacklisting, feed/privacy rules, ownership permissions,
+moderation state machine (safe/unsafe/hold/timeout/outage/malformed JSON), like and follow
+idempotency, follow requests, notifications, nudge guardrails (threshold, cooldown, streak
+reset), throttling, and Pydantic contract validation.
 
 ---
 
-## 📊 Database Schema
+## Deployment (Render)
+
+[`render.yaml`](render.yaml) is a blueprint for: Postgres, Redis, the Django web service
+(+ `migrate` on deploy), a Celery worker, Celery beat, and the AI service.
+
+1. New → Blueprint → pick this repo.
+2. Set the secret vars (`API_KEYS` on the AI service, `AI_SERVICE_API_KEY` on Django and the
+   worker — they must match; plus `OPENAI_API_KEY` or `HF_API_TOKEN` if you use a hosted model).
+3. `DJANGO_ENV=prod` turns on HSTS, secure cookies, `X-Frame-Options: DENY` and requires a
+   real `SECRET_KEY`.
+
+CI ([`.github/workflows/ci.yml`](.github/workflows/ci.yml)) runs on every push/PR: ruff,
+Django checks, missing-migration check, both test suites, and an integration job that boots
+the AI service and asserts a real HTTP moderation call.
+
+---
+
+## Layout
 
 ```
-User ──── Profile (1:1)
-User ──── Post (1:Many)
-Post ──── PostMedia (1:Many)     # Images + Videos
-Post ──── Like (Many:Many)
-Post ──── Comment (1:Many)
-Comment ── Comment (self, replies)
-Post ──── SavedPost (Many:Many)
-User ──── Follow (Many:Many)
-User ──── Story (1:Many)
-Story ─── StoryView (Many:Many)
-Story ─── StoryReaction (Many:Many)
-Story ─── StoryHighlight (Many:Many)
-User ──── Thread (Many:Many)     # DMs
-Thread ── Message (1:Many)
-User ──── Notification (1:Many)
-User ──── BlockedUser (Many:Many)
+social_media/        settings (base/dev/prod/test), urls, celery, wsgi, asgi
+accounts/            custom user, JWT auth, profile
+posts/               Post model, feed manager, moderation service layer
+social/              Follow / Like / Comment + services
+notifications/       inbox model, services, API, polling endpoint
+ai_companion/        AI HTTP client, Celery tasks, MoodCheck, WellbeingNudge
+common/              JSON logging, middleware, throttles, permissions, error envelope
+templates/ static/   Bootstrap 5 UI
+ai_service/          FastAPI microservice (app/{core,schemas,providers,routers}, tests)
+infra/               Redis image for Render
 ```
 
----
+## Key decisions
 
-## 📝 License
-
-This project is licensed under the **MIT License** — see the [LICENSE](LICENSE) file for details.
-
----
-
-## 👨‍💻 Author
-
-**Rajeev Swami**
-- GitHub: [@YOUR_USERNAME](https://github.com/YOUR_USERNAME)
-- LinkedIn: [Your LinkedIn](https://linkedin.com/in/yourprofile)
-
----
-
-## ⭐ Show Your Support
-
-If you found this project helpful, please give it a **⭐ Star** on GitHub!
-
-It motivates me to build more open-source projects. 🙏
-
----
-
-<div align="center">
-
-**Made with ❤️ using Django & Python**
-
-![Python](https://img.shields.io/badge/Python-3776AB?style=flat&logo=python&logoColor=white)
-![Django](https://img.shields.io/badge/Django-092E20?style=flat&logo=django&logoColor=white)
-![HTML5](https://img.shields.io/badge/HTML5-E34F26?style=flat&logo=html5&logoColor=white)
-![CSS3](https://img.shields.io/badge/CSS3-1572B6?style=flat&logo=css3&logoColor=white)
-![JavaScript](https://img.shields.io/badge/JavaScript-F7DF1E?style=flat&logo=javascript&logoColor=black)
-
-</div>
+* **Profile fields on the user model**, not a 1:1 `Profile` — the feed joins users constantly.
+* **Service layer** (`posts/services.py`, `social/services.py`) so the API, UI, tasks and
+  management commands can't drift on business rules.
+* **Soft delete for posts** — moderation history and notifications stay consistent.
+* **Follow requests are `Follow(is_active=False)`**, not a second table — one index answers
+  "requests I need to review".
+* **DB-backed notifications** with a polling endpoint: durable, queryable, and a websocket
+  fan-out is a one-line addition in `notifications.services.notify()`.
+* **`with_counts()` prefetch** on every feed query to avoid N+1 on like/comment counts.
+* **Heuristic provider as a first-class fallback** — moderation stays available (and free)
+  when a hosted model is down; `degraded: true` keeps the audit trail honest.

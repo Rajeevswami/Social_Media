@@ -1,0 +1,11 @@
+<div class="feed-column">
+  {% for post in posts %}
+    {% include "posts/_post_card.html" %}
+  {% empty %}
+    <div class="text-center text-secondary py-5">
+      <i class="bi bi-people fs-1 d-block mb-2"></i>
+      <p class="mb-1">Your feed is quiet.</p>
+      <small>Follow people or <a href="{% url 'posts:compose' %}">write the first post</a>.</small>
+    </div>
+  {% endfor %}
+</div>

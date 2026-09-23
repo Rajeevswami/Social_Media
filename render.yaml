@@ -1,0 +1,148 @@
+# Render blueprint: one Postgres, one Redis, the Django app (+ worker, beat)
+# and the FastAPI AI service.
+#
+# Import this file in Render ("New +" -> "Blueprint") and set the secret env
+# vars marked `sync: false` in the dashboard.
+
+databases:
+  - name: social-media-db
+    databaseName: social_media
+    user: social_media
+    plan: free
+
+services:
+  # -- FastAPI AI microservice -----------------------------------------
+  - type: web
+    name: social-media-ai
+    runtime: python
+    plan: free
+    rootDir: ai_service
+    buildCommand: pip install -r requirements.txt
+    startCommand: uvicorn app.main:app --host 0.0.0.0 --port $PORT
+    healthCheckPath: /health
+    envVars:
+      - key: PYTHON_VERSION
+        value: 3.12.3
+      - key: ENVIRONMENT
+        value: prod
+      - key: SERVICE_NAME
+        value: social-media-ai
+      - key: API_KEYS
+        sync: false            # set in dashboard; must match Django's AI_SERVICE_API_KEY
+      - key: PROVIDER
+        value: heuristic       # switch to openai | huggingface when keys are set
+      - key: OPENAI_API_KEY
+        sync: false
+      - key: HF_API_TOKEN
+        sync: false
+      - key: CORS_ORIGINS
+        sync: false            # e.g. https://social-media.onrender.com
+      - key: RATE_LIMIT_REQUESTS
+        value: "120"
+      - key: RATE_LIMIT_WINDOW_SECONDS
+        value: "60"
+
+  # -- Django web -------------------------------------------------------
+  - type: web
+    name: social-media-web
+    runtime: python
+    plan: free
+    buildCommand: pip install -r requirements.txt && python manage.py collectstatic --noinput
+    startCommand: gunicorn social_media.wsgi --bind 0.0.0.0:$PORT --workers 3 --threads 2
+    healthCheckPath: /healthz
+    envVars:
+      - key: PYTHON_VERSION
+        value: 3.12.3
+      - key: DJANGO_ENV
+        value: prod
+      - key: DJANGO_SECRET_KEY
+        generateValue: true
+      - key: DJANGO_DEBUG
+        value: "False"
+      - key: DJANGO_ALLOWED_HOSTS
+        value: "*"
+      - key: DATABASE_URL
+        fromDatabase:
+          name: social-media-db
+          property: connectionString
+      - key: REDIS_URL
+        fromService:
+          name: social-media-redis
+          type: pserv
+          property: hostport
+      - key: AI_SERVICE_BASE_URL
+        fromService:
+          name: social-media-ai
+          type: web
+          property: hostport
+      - key: AI_SERVICE_API_KEY
+        sync: false            # same secret as the AI service's API_KEYS
+      - key: CORS_ALLOWED_ORIGINS
+        sync: false
+      - key: MODERATION_POLICY
+        value: auto_publish
+      - key: MODERATION_FAILURE_POLICY
+        value: fail_open
+    migrateCommand: python manage.py migrate --noinput
+
+  # -- Celery worker ----------------------------------------------------
+  - type: worker
+    name: social-media-worker
+    runtime: python
+    plan: free
+    buildCommand: pip install -r requirements.txt
+    startCommand: celery -A social_media worker -l info -Q default,ai --concurrency 2
+    envVars:
+      - key: PYTHON_VERSION
+        value: 3.12.3
+      - key: DJANGO_ENV
+        value: prod
+      - key: DJANGO_SECRET_KEY
+        sync: false            # reuse the web service's secret
+      - key: DATABASE_URL
+        fromDatabase:
+          name: social-media-db
+          property: connectionString
+      - key: CELERY_BROKER_URL
+        fromService:
+          name: social-media-redis
+          type: pserv
+          property: hostport
+      - key: AI_SERVICE_BASE_URL
+        fromService:
+          name: social-media-ai
+          type: web
+          property: hostport
+      - key: AI_SERVICE_API_KEY
+        sync: false
+
+  # -- Celery beat (nightly mood sweep) ---------------------------------
+  - type: worker
+    name: social-media-beat
+    runtime: python
+    plan: free
+    buildCommand: pip install -r requirements.txt
+    startCommand: celery -A social_media beat -l info
+    envVars:
+      - key: PYTHON_VERSION
+        value: 3.12.3
+      - key: DJANGO_ENV
+        value: prod
+      - key: DJANGO_SECRET_KEY
+        sync: false
+      - key: DATABASE_URL
+        fromDatabase:
+          name: social-media-db
+          property: connectionString
+      - key: CELERY_BROKER_URL
+        fromService:
+          name: social-media-redis
+          type: pserv
+          property: hostport
+
+  # -- Redis ------------------------------------------------------------
+  - type: pserv
+    name: social-media-redis
+    runtime: docker
+    plan: free
+    dockerfilePath: ./infra/redis.Dockerfile

@@ -1,0 +1,30 @@
+/* Social_Media UI polish (Bootstrap 5 handles the heavy lifting). */
+
+.avatar-sm { width: 28px; height: 28px; object-fit: cover; }
+.avatar-md { width: 44px; height: 44px; object-fit: cover; }
+.avatar-lg { width: 96px; height: 96px; object-fit: cover; }
+
+.avatar-fallback {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--bs-primary);
+  color: #fff;
+  font-weight: 600;
+}
+.avatar-lg.avatar-fallback { font-size: 2rem; }
+.avatar-md.avatar-fallback { font-size: 1.1rem; }
+
+.post-image { max-height: 520px; width: 100%; object-fit: cover; }
+
+.moderation-flag { font-size: .8rem; }
+
+.nudge-card {
+  border-left: 4px solid var(--bs-info);
+  background: color-mix(in srgb, var(--bs-info) 8%, var(--bs-body-bg));
+}
+
+.caption-suggestion { cursor: pointer; }
+.caption-suggestion:hover { background: var(--bs-tertiary-bg); }
+
+.feed-column { max-width: 640px; margin-inline: auto; }

@@ -1,0 +1,50 @@
+{% extends "base.html" %}
+{% block title %}New post · {{ SITE_NAME }}{% endblock %}
+{% block content %}
+<div class="row justify-content-center">
+  <div class="col-lg-7">
+    {% include "ai_companion/_nudge.html" %}
+    <div class="card shadow-sm mb-3">
+      <div class="card-body p-4">
+        <h1 class="h4 mb-3">Create a post</h1>
+        {% if form.non_field_errors %}
+          <div class="alert alert-danger py-2 small">{{ form.non_field_errors.0 }}</div>
+        {% endif %}
+        <form method="post" enctype="multipart/form-data">
+          {% csrf_token %}
+          <div class="mb-3">
+            <label class="form-label" for="id_content">Text</label>
+            <textarea class="form-control {% if form.content.errors %}is-invalid{% endif %}"
+                      id="id_content" name="content" rows="4" maxlength="2000"
+                      data-caption-target>{{ form.content.value|default:'' }}</textarea>
+            {% if form.content.errors %}<div class="invalid-feedback d-block">{{ form.content.errors.0 }}</div>{% endif %}
+          </div>
+          <div class="mb-3">
+            <label class="form-label" for="id_image">Image</label>
+            <input class="form-control" id="id_image" name="image" type="file" accept="image/*">
+          </div>
+          <div class="mb-3">
+            <label class="form-label" for="id_location">Location</label>
+            <input class="form-control" id="id_location" name="location" maxlength="120" value="{{ form.location.value|default:'' }}">
+          </div>
+          <button class="btn btn-primary" type="submit">Publish</button>
+        </form>
+      </div>
+    </div>
+
+    <div class="card shadow-sm">
+      <div class="card-body p-4">
+        <h2 class="h6 mb-2"><i class="bi bi-stars"></i> Need a caption?</h2>
+        <div class="input-group mb-2">
+          <input class="form-control" data-caption-idea placeholder="e.g. monsoon chai, deadline done, gym day 12">
+          <button class="btn btn-outline-primary" type="button" data-caption-trigger>Suggest caption</button>
+        </div>
+        <div class="small text-secondary mb-2" data-caption-status>
+          Suggestions come from the AI microservice (rate limited to protect the API budget).
+        </div>
+        <ul class="list-group list-group-flush" data-caption-results></ul>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}

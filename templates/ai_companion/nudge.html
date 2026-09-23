@@ -1,0 +1,55 @@
+{% extends "base.html" %}
+{% block title %}Check-ins · {{ SITE_NAME }}{% endblock %}
+{% block content %}
+<div class="row justify-content-center">
+  <div class="col-lg-7">
+    <h1 class="h4 mb-1">Wellbeing check-ins</h1>
+    <p class="small text-secondary mb-4">
+      A nightly job looks at the overall tone of your recent posts. If the tone stays negative for
+      {{ 3 }}+ days in a row we show one gentle, dismissible check-in. Nothing here is a diagnosis,
+      and nothing is shared with other users.
+    </p>
+
+    {% if active_nudge %}
+      <div class="card nudge-card shadow-sm mb-4">
+        <div class="card-body">
+          <h2 class="h6 mb-2"><i class="bi bi-heart-pulse text-info"></i> Current check-in</h2>
+          <p class="small mb-3">{{ active_nudge.message|linebreaksbr }}</p>
+          <form method="post" action="{% url 'ai_companion:nudge_dismiss' active_nudge.pk %}">
+            {% csrf_token %}
+            <button class="btn btn-sm btn-outline-secondary" type="submit">Dismiss</button>
+          </form>
+        </div>
+      </div>
+    {% endif %}
+
+    <div class="card shadow-sm mb-4">
+      <div class="card-body">
+        <h2 class="h6 mb-2">If you want to talk to someone</h2>
+        <ul class="small mb-0">
+          <li>Reach out to a friend or family member you trust.</li>
+          <li><a href="https://findahelpline.com" rel="noopener" target="_blank">findahelpline.com</a> — free, confidential helplines by country.</li>
+          <li>A doctor or licensed therapist can help with anything that feels heavy.</li>
+        </ul>
+      </div>
+    </div>
+
+    <h2 class="h6 mb-2">Recent tone signals</h2>
+    <div class="list-group shadow-sm">
+      {% for check in checks %}
+        <div class="list-group-item d-flex justify-content-between align-items-center">
+          <span>
+            <span class="badge text-bg-{% if check.signal == 'negative' %}warning{% elif check.signal == 'positive' %}success{% else %}secondary{% endif %}">
+              {{ check.signal }}
+            </span>
+            <span class="small text-secondary ms-2">{{ check.posts_analyzed }} posts analysed</span>
+          </span>
+          <small class="text-secondary">{{ check.created_at|date:"d M Y" }}</small>
+        </div>
+      {% empty %}
+        <div class="list-group-item text-secondary small">No checks yet — they run nightly for active accounts.</div>
+      {% endfor %}
+    </div>
+  </div>
+</div>
+{% endblock %}

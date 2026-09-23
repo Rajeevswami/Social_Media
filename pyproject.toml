@@ -1,0 +1,16 @@
+[tool.ruff]
+line-length = 110
+target-version = "py311"
+extend-exclude = ["migrations", ".venv", "staticfiles", "media"]
+
+[tool.ruff.lint]
+select = ["E", "F", "UP", "B"]
+ignore = [
+  "E501",   # long lines: comments/docstrings in this repo exceed 110 occasionally
+  "B008",   # DRF/FastAPI dependencies in argument defaults
+  "B904",   # raise-without-from inside except blocks (handled case by case)
+]
+
+[tool.ruff.lint.per-file-ignores]
+"social_media/settings/*.py" = ["F403", "F405"]   # star imports between settings modules
+"social_media/celery.py" = ["E402"]

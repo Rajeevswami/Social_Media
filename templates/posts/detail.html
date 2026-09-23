@@ -1,0 +1,52 @@
+{% extends "base.html" %}
+{% load common_extras %}
+{% block title %}Post by {{ post.author.username }} · {{ SITE_NAME }}{% endblock %}
+{% block content %}
+<div class="feed-column">
+  {% include "posts/_post_card.html" %}
+
+  <div class="card shadow-sm">
+    <div class="card-body">
+      <h2 class="h6 mb-3"><i class="bi bi-chat-dots"></i> Comments ({{ comments|length }})</h2>
+      {% for comment in comments %}
+        <div class="d-flex gap-2 mb-3">
+          <a href="{% url 'accounts:profile' comment.author.username %}">
+            {% if comment.author.avatar %}
+              <img src="{{ comment.author.avatar.url }}" class="avatar-sm rounded-circle" alt="">
+            {% else %}
+              <span class="avatar-sm avatar-fallback rounded-circle">{{ comment.author.initials }}</span>
+            {% endif %}
+          </a>
+          <div class="flex-grow-1">
+            <div class="small">
+              <a class="fw-semibold text-decoration-none" href="{% url 'accounts:profile' comment.author.username %}">
+                {{ comment.author.profile_name }}
+              </a>
+              <span class="text-secondary">&middot; {{ comment.created_at|timesince }} ago</span>
+            </div>
+            <div>{{ comment.content|linebreaksbr }}</div>
+          </div>
+          {% if user == comment.author or user == post.author %}
+            <form method="post" action="{% url 'social:comment_delete_ui' comment.pk %}" class="align-self-start">
+              {% csrf_token %}
+              <button class="btn btn-sm btn-link text-secondary p-0" title="Delete comment"><i class="bi bi-x-lg"></i></button>
+            </form>
+          {% endif %}
+        </div>
+      {% empty %}
+        <p class="text-secondary small mb-3">No comments yet — start the conversation.</p>
+      {% endfor %}
+
+      {% if user.is_authenticated %}
+        <form method="post" class="d-flex gap-2">
+          {% csrf_token %}
+          <input class="form-control" name="content" maxlength="1000" placeholder="Write a comment…" required>
+          <button class="btn btn-primary" type="submit">Comment</button>
+        </form>
+      {% else %}
+        <p class="small text-secondary mb-0"><a href="{% url 'accounts:login' %}">Log in</a> to comment.</p>
+      {% endif %}
+    </div>
+  </div>
+</div>
+{% endblock %}

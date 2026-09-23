@@ -1,0 +1,35 @@
+{% extends "base.html" %}
+{% block title %}Log in · {{ SITE_NAME }}{% endblock %}
+{% block content %}
+<div class="row justify-content-center">
+  <div class="col-md-5 col-lg-4">
+    <div class="card shadow-sm">
+      <div class="card-body p-4">
+        <h1 class="h4 mb-3">Log in</h1>
+        {% if form.non_field_errors %}
+          <div class="alert alert-danger py-2 small">{{ form.non_field_errors.0 }}</div>
+        {% endif %}
+        <form method="post" novalidate>
+          {% csrf_token %}
+          <div class="mb-3">
+            <label class="form-label" for="{{ form.username.id_for_label }}">Username or email</label>
+            <input class="form-control {% if form.username.errors %}is-invalid{% endif %}"
+                   id="{{ form.username.id_for_label }}" name="username" autofocus required>
+            {% if form.username.errors %}<div class="invalid-feedback">{{ form.username.errors.0 }}</div>{% endif %}
+          </div>
+          <div class="mb-3">
+            <label class="form-label" for="{{ form.password.id_for_label }}">Password</label>
+            <input class="form-control {% if form.password.errors %}is-invalid{% endif %}"
+                   id="{{ form.password.id_for_label }}" name="password" type="password" required>
+            {% if form.password.errors %}<div class="invalid-feedback">{{ form.password.errors.0 }}</div>{% endif %}
+          </div>
+          <button class="btn btn-primary w-100" type="submit">Log in</button>
+        </form>
+        <p class="text-center small text-secondary mt-3 mb-0">
+          New here? <a href="{% url 'accounts:signup' %}">Create an account</a>
+        </p>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}
