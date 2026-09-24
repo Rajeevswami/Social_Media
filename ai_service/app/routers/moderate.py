@@ -8,7 +8,7 @@ from fastapi import APIRouter, Depends, HTTPException, status
 from app.core.config import get_settings
 from app.core.dependencies import rate_limited_api_key
 from app.providers.base import ProviderError
-from app.providers.factory import get_provider, run_with_fallback
+from app.providers.factory import get_provider, init_fallback_active, run_with_fallback
 from app.providers.heuristic import HeuristicProvider
 from app.schemas.moderation import ModerationFlag, ModerationRequest, ModerationResponse
 
@@ -53,6 +53,11 @@ async def moderate(payload: ModerationRequest) -> ModerationResponse:
             detail="Moderation provider unavailable.",
         ) from exc
 
+    # A provider that could not even be built is degraded too.
+    degraded = degraded or init_fallback_active()
+    # Report who actually answered, so the audit trail is honest.
+    answered_by = "heuristic" if degraded else provider.name
+
     logger.info(
         "moderation complete",
         extra={
@@ -60,7 +65,7 @@ async def moderate(payload: ModerationRequest) -> ModerationResponse:
             "post_id": payload.post_id,
             "is_safe": verdict.is_safe,
             "flags": verdict.flags,
-            "provider": provider.name,
+            "provider": answered_by,
             "degraded": degraded,
         },
     )
@@ -70,7 +75,7 @@ async def moderate(payload: ModerationRequest) -> ModerationResponse:
         scores=[ModerationFlag(category=category, score=score) for category, score in verdict.scores.items()],
         confidence=verdict.confidence,
         reason=verdict.reason,
-        provider=provider.name,
+        provider=answered_by,
         degraded=degraded,
         post_id=payload.post_id,
     )

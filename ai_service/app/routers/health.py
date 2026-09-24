@@ -7,7 +7,7 @@ from fastapi.responses import JSONResponse
 
 from app import __version__
 from app.core.config import get_settings
-from app.providers.factory import get_provider
+from app.providers.factory import get_provider, init_fallback_active
 
 router = APIRouter(tags=["health"])
 
@@ -25,7 +25,7 @@ async def health() -> JSONResponse:
             "service": settings.service_name,
             "version": __version__,
             "provider": provider.name,
-            "degraded_mode": provider.name == "heuristic" and settings.provider != "heuristic",
+            "degraded_mode": init_fallback_active(),
             "environment": settings.environment,
             "uptime_seconds": round(time.monotonic() - _STARTED, 1),
         }

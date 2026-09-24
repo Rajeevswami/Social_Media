@@ -207,6 +207,21 @@ CELERY_TASK_ROUTES = {
     "ai_companion.tasks.*": {"queue": "ai"},
 }
 CELERY_BROKER_CONNECTION_RETRY_ON_STARTUP = True
+# Redis transport: how long an *unacked* message stays invisible before it is
+# redelivered to another worker. Celery's default is 3600s, which would leave a
+# post unmoderated for up to an hour if a worker is killed mid-task. It must
+# stay comfortably above the longest expected task runtime
+# (AI_SERVICE_TIMEOUT_SECONDS * (AI_SERVICE_RETRIES + 1) + slack), otherwise a
+# slow-but-alive task gets executed twice.
+CELERY_BROKER_TRANSPORT_OPTIONS = {
+    "visibility_timeout": config("CELERY_VISIBILITY_TIMEOUT", default=600, cast=int),
+}
+CELERY_TIMEZONE = config("CELERY_TIMEZONE", default="UTC")
+
+# Nightly wellbeing sweep time, interpreted in CELERY_TIMEZONE. See
+# social_media/celery.py::_mood_schedule.
+MOOD_CHECK_HOUR = config("MOOD_CHECK_HOUR", default=2, cast=int)
+MOOD_CHECK_MINUTE = config("MOOD_CHECK_MINUTE", default=30, cast=int)
 
 # ---------------------------------------------------------------------------
 # AI microservice client (see apps/ai_companion/client.py)

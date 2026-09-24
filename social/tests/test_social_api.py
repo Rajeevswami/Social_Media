@@ -136,3 +136,82 @@ class TestFollow:
 
         following = auth_client.get(reverse("api:social:following", args=[other_user.username]))
         assert following.data["count"] == 1
+
+
+@pytest.mark.django_db
+class TestPrivateGraphPrivacy:
+    """A private account's follower/following lists are private too.
+
+    These lists used to be readable by any authenticated user (HTTP 200 with
+    the full graph), which leaked who follows a private account.
+    """
+
+    def test_stranger_cannot_list_followers(self, auth_client, user_factory):
+        priv = user_factory("priv_user", is_private=True)
+        Follow.objects.create(follower=user_factory("secret_follower"), followee=priv, is_active=True)
+        response = auth_client.get(reverse("api:social:followers", args=[priv.username]))
+        assert response.status_code == status.HTTP_404_NOT_FOUND
+
+    def test_stranger_cannot_list_following(self, auth_client, user_factory):
+        priv = user_factory("priv_user", is_private=True)
+        Follow.objects.create(follower=priv, followee=user_factory("their_follow"), is_active=True)
+        assert auth_client.get(reverse("api:social:following", args=[priv.username])).status_code == status.HTTP_404_NOT_FOUND
+
+    def test_approved_follower_can_still_list(self, auth_client, user, user_factory):
+        priv = user_factory("priv_user", is_private=True)
+        Follow.objects.create(follower=user, followee=priv, is_active=True)  # approved
+        assert auth_client.get(reverse("api:social:followers", args=[priv.username])).status_code == status.HTTP_200_OK
+
+    def test_pending_follower_cannot_list(self, auth_client, user, user_factory):
+        priv = user_factory("priv_user", is_private=True)
+        Follow.objects.create(follower=user, followee=priv, is_active=False)  # still pending
+        assert auth_client.get(reverse("api:social:followers", args=[priv.username])).status_code == status.HTTP_404_NOT_FOUND
+
+    def test_owner_can_list_own_graph(self, auth_client, user, user_factory):
+        priv = user_factory("priv_user", is_private=True)
+        auth_client.force_authenticate(user=priv)
+        assert auth_client.get(reverse("api:social:followers", args=[priv.username])).status_code == status.HTTP_200_OK
+
+    def test_public_graph_stays_visible(self, auth_client, user_factory):
+        public = user_factory("public_user", is_private=False)
+        Follow.objects.create(follower=user_factory("someone"), followee=public, is_active=True)
+        response = auth_client.get(reverse("api:social:followers", args=[public.username]))
+        assert response.status_code == status.HTTP_200_OK
+        assert response.data["count"] == 1
+
+    def test_private_post_comments_not_readable(self, auth_client, user_factory):
+        """Comments inherit the post's visibility (now enforced explicitly)."""
+        priv = user_factory("priv_user", is_private=True)
+        post = Post.objects.create(author=priv, content="private post", moderation_status="approved")
+        Comment.objects.create(post=post, author=priv, content="a secret comment")
+        assert auth_client.get(reverse("api:social:comments", args=[post.id])).status_code == status.HTTP_404_NOT_FOUND
+
+    def test_cannot_comment_on_invisible_post(self, auth_client, user_factory):
+        priv = user_factory("priv_user", is_private=True)
+        post = Post.objects.create(author=priv, content="private", moderation_status="approved")
+        response = auth_client.post(
+            reverse("api:social:comments", args=[post.id]), {"content": "sneaky comment"}, format="json"
+        )
+        assert response.status_code == status.HTTP_404_NOT_FOUND
+        assert not Comment.objects.filter(post=post).exists()
+
+
+@pytest.mark.django_db
+class TestCanViewHelper:
+    def test_rules(self, user, user_factory):
+        from django.contrib.auth.models import AnonymousUser
+
+        public = user_factory("public_user", is_private=False)
+        priv = user_factory("priv_user", is_private=True)
+        staff = user_factory("staff_user", is_staff=True)
+        anon = AnonymousUser()
+
+        assert public.can_view(anon) is True
+        assert priv.can_view(anon) is False
+        assert priv.can_view(user) is False
+        assert priv.can_view(priv) is True
+        assert priv.can_view(staff) is True
+        Follow.objects.create(follower=user, followee=priv, is_active=True)
+        assert priv.can_view(user) is True
+        Follow.objects.filter(follower=user, followee=priv).update(is_active=False)
+        assert priv.can_view(user) is False

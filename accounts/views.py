@@ -45,7 +45,7 @@ def profile_view(request, username: str):
     profile = get_object_or_404(User, username=username)
     viewer = request.user
     is_owner = viewer.is_authenticated and viewer == profile
-    can_view = is_owner or not profile.is_private or profile.is_followed_by(viewer)
+    can_view = is_owner or profile.can_view(viewer)
 
     posts = (
         profile.posts.select_related("author").prefetch_related("likes", "comments__author")

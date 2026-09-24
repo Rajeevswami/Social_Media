@@ -55,6 +55,17 @@ def reset_provider_cache() -> None:
     _build.cache_clear()
 
 
+def init_fallback_active() -> bool:
+    """True when the *configured* provider could not be built at all.
+
+    An operator who sets PROVIDER=huggingface but forgets HF_API_TOKEN would
+    otherwise get heuristic answers from every endpoint while `degraded` stayed
+    False - a silent misconfiguration. /health already surfaced this via
+    `degraded_mode`; this shares the same rule so the per-request flag agrees.
+    """
+    return get_settings().provider != "heuristic" and get_provider().name == "heuristic"
+
+
 async def run_with_fallback(
     primary: Callable[[], Awaitable[T]], fallback: Callable[[], Awaitable[T]], *, event: str
 ) -> tuple[T, bool]:

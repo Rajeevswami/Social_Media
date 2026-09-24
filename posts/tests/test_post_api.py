@@ -139,3 +139,72 @@ class TestEditAndDelete:
         response = auth_client.get(reverse("api:posts:post-detail", args=[post.id]))
         assert response.data["moderation_status"] == "flagged"
         assert response.data["moderation_reason"] == ""  # not leaked to non-owners
+
+
+@pytest.mark.django_db
+class TestHeldPostVisibility:
+    """Regression: a held post must stay reachable by its author.
+
+    `PostQuerySet.visible_to()` used to funnel through `published()`, which
+    dropped held posts unconditionally — so under MODERATION_POLICY=hold_unsafe
+    the author got a 404 for their own post and could not see why it was held,
+    contradicting `Post.visible_to()` and the "never silently block" contract.
+    """
+
+    def test_author_can_retrieve_own_held_post(self, auth_client, user):
+        held = Post.objects.create(
+            author=user, content="held for review",
+            moderation_status=Post.ModerationStatus.HELD,
+            moderation_reason="Flagged for: toxicity",
+        )
+        response = auth_client.get(reverse("api:posts:post-detail", args=[held.id]))
+        assert response.status_code == status.HTTP_200_OK
+        assert response.data["moderation_status"] == "held"
+        assert "toxicity" in response.data["moderation_reason"]
+
+    def test_author_can_edit_own_held_post(self, auth_client, user, mock_ai_client):
+        held = Post.objects.create(
+            author=user, content="held for review", moderation_status=Post.ModerationStatus.HELD
+        )
+        response = auth_client.patch(
+            reverse("api:posts:post-detail", args=[held.id]), {"content": "rewritten kindly"}, format="json"
+        )
+        assert response.status_code == status.HTTP_200_OK
+        held.refresh_from_db()
+        assert held.content == "rewritten kindly"
+        assert held.moderation_status == Post.ModerationStatus.APPROVED  # re-moderated
+
+    def test_stranger_still_cannot_see_held_post(self, auth_client, other_user):
+        held = Post.objects.create(
+            author=other_user, content="someone elses held post",
+            moderation_status=Post.ModerationStatus.HELD,
+        )
+        assert auth_client.get(reverse("api:posts:post-detail", args=[held.id])).status_code == status.HTTP_404_NOT_FOUND
+
+    def test_held_post_stays_off_everyones_feed(self, auth_client, user):
+        held = Post.objects.create(
+            author=user, content="held", moderation_status=Post.ModerationStatus.HELD
+        )
+        feed = auth_client.get(reverse("api:posts:feed"))
+        assert held.id not in {row["id"] for row in feed.data["results"]}
+
+    def test_staff_can_retrieve_any_held_post(self, auth_client, user_factory):
+        staff = user_factory(username="moderator", is_staff=True)
+        held = Post.objects.create(
+            author=user_factory(username="suspect"), content="review me",
+            moderation_status=Post.ModerationStatus.HELD,
+        )
+        auth_client.force_authenticate(user=staff)
+        assert auth_client.get(reverse("api:posts:post-detail", args=[held.id])).status_code == status.HTTP_200_OK
+
+    def test_queryset_and_instance_agree(self, auth_client, user, other_user):
+        """The queryset filter and the model method must never disagree."""
+        cases = [
+            Post.objects.create(author=user, content="mine held", moderation_status="held"),
+            Post.objects.create(author=user, content="mine hidden", is_hidden=True),
+            Post.objects.create(author=other_user, content="theirs held", moderation_status="held"),
+            Post.objects.create(author=other_user, content="theirs ok", moderation_status="approved"),
+        ]
+        for post in cases:
+            in_queryset = Post.objects.visible_to(user).filter(pk=post.pk).exists()
+            assert in_queryset == post.visible_to(user), f"disagreement on post {post.pk}"

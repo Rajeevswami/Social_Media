@@ -10,15 +10,26 @@ class PostQuerySet(models.QuerySet):
         return self.published().filter(author__is_private=False)
 
     def visible_to(self, user):
-        """Posts a given user is allowed to see."""
-        qs = self.published()
-        if not (user and user.is_authenticated):
-            return qs.filter(author__is_private=False)
-        return qs.filter(
+        """Posts a given user is allowed to see.
+
+        Must stay in lockstep with `Post.visible_to()` (the per-instance
+        version). A held or hidden post stays reachable by its author and by
+        staff: a moderation hold must never make a post silently vanish from
+        the person who wrote it.
+        """
+        if not (user and getattr(user, "is_authenticated", False)):
+            return self.published().filter(author__is_private=False)
+        if getattr(user, "is_staff", False):
+            return self.all()
+
+        reachable = (
             models.Q(author__is_private=False)
             | models.Q(author__followers__follower=user, author__followers__is_active=True)
             | models.Q(author=user)
-        ).distinct()
+        )
+        published = models.Q(is_hidden=False) & ~models.Q(moderation_status="held")
+        # (published AND reachable) OR anything you wrote yourself.
+        return self.filter((published & reachable) | models.Q(author=user)).distinct()
 
     def feed_for(self, user):
         """Home feed: own posts + posts from accounts the user follows."""

@@ -69,3 +69,18 @@ class User(AbstractUser):
         if not user or not user.is_authenticated:
             return False
         return self.followers.filter(follower=user, is_active=True).exists()
+
+    def can_view(self, viewer) -> bool:
+        """Whether `viewer` may see this account's private content and graph.
+
+        Single source of truth for every privacy decision (profile, posts,
+        follower/following lists) so the rules cannot drift between the HTML
+        views and the API.
+        """
+        if not self.is_private:
+            return True
+        if not (viewer and getattr(viewer, "is_authenticated", False)):
+            return False
+        if viewer == self or getattr(viewer, "is_staff", False):
+            return True
+        return self.is_followed_by(viewer)

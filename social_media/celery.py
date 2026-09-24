@@ -33,12 +33,27 @@ def configure_celery_logging(**_kwargs: object) -> None:
     logging.config.dictConfig(settings.LOGGING)
 
 
+def _mood_schedule() -> crontab:
+    """When the nightly wellbeing sweep runs.
+
+    Configurable because "nightly" is relative to the deployment's timezone:
+    Celery interprets `crontab` in CELERY_TIMEZONE, so an operator in IST can
+    keep 02:30 local while a US-hosted worker shifts it. Defaults to 02:30.
+    """
+    from django.conf import settings
+
+    return crontab(
+        hour=getattr(settings, "MOOD_CHECK_HOUR", 2),
+        minute=getattr(settings, "MOOD_CHECK_MINUTE", 30),
+    )
+
+
 app.conf.beat_schedule = {
     # Nightly wellbeing sweep: never diagnoses, only nudges. See
     # ai_companion.tasks.run_mood_check_for_active_users.
     "mood-check-nightly": {
         "task": "ai_companion.tasks.run_mood_check_for_active_users",
-        "schedule": crontab(hour=2, minute=30),
+        "schedule": _mood_schedule(),
     },
 }
 

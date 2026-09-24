@@ -3,6 +3,7 @@ from __future__ import annotations
 
 from django.contrib import messages
 from django.contrib.auth.decorators import login_required
+from django.http import Http404
 from django.shortcuts import get_object_or_404, redirect, render
 from django.views.decorators.http import require_http_methods
 
@@ -13,6 +14,10 @@ from social.services import accept_follow_request, reject_follow_request
 
 def connection_list_view(request, username: str, kind: str):
     profile = get_object_or_404(User, username=username)
+    # A private account's social graph is private too: without this any logged
+    # in user could enumerate who follows a private account.
+    if not profile.can_view(request.user):
+        raise Http404
     if kind == "followers":
         people = [f.follower for f in Follow.objects.filter(followee=profile, is_active=True).select_related("follower")]
     else:

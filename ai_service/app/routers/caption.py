@@ -7,7 +7,7 @@ from fastapi import APIRouter, Depends, HTTPException, status
 
 from app.core.dependencies import rate_limited_api_key
 from app.providers.base import ProviderError
-from app.providers.factory import get_provider, run_with_fallback
+from app.providers.factory import get_provider, init_fallback_active, run_with_fallback
 from app.providers.heuristic import HeuristicProvider
 from app.schemas.caption import CaptionRequest, CaptionResponse
 
@@ -32,14 +32,17 @@ async def caption(payload: CaptionRequest) -> CaptionResponse:
             detail="Caption provider unavailable.",
         ) from exc
 
+    degraded = degraded or init_fallback_active()
+    answered_by = "heuristic" if degraded else provider.name
+
     logger.info(
         "captions generated",
         extra={
             "event": "caption.done",
             "count": len(result.suggestions),
             "tone": payload.tone,
-            "provider": provider.name,
+            "provider": answered_by,
             "degraded": degraded,
         },
     )
-    return CaptionResponse(suggestions=result.suggestions[:3], provider=provider.name, degraded=degraded)
+    return CaptionResponse(suggestions=result.suggestions[:3], provider=answered_by, degraded=degraded)

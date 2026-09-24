@@ -13,7 +13,7 @@ from fastapi import APIRouter, Depends, HTTPException, status
 from app.core.config import get_settings
 from app.core.dependencies import rate_limited_api_key
 from app.providers.base import ProviderError
-from app.providers.factory import get_provider, run_with_fallback
+from app.providers.factory import get_provider, init_fallback_active, run_with_fallback
 from app.providers.heuristic import HeuristicProvider
 from app.schemas.mood import MoodCheckRequest, MoodCheckResponse
 
@@ -41,6 +41,9 @@ async def mood_check(payload: MoodCheckRequest) -> MoodCheckResponse:
             detail="Mood provider unavailable.",
         ) from exc
 
+    degraded = degraded or init_fallback_active()
+    answered_by = "heuristic" if degraded else provider.name
+
     logger.info(
         "mood check complete",
         extra={
@@ -48,7 +51,7 @@ async def mood_check(payload: MoodCheckRequest) -> MoodCheckResponse:
             "user_id": payload.user_id,
             "signal": verdict.signal,
             "posts_analyzed": len(texts),
-            "provider": provider.name,
+            "provider": answered_by,
             "degraded": degraded,
         },
     )
@@ -58,6 +61,6 @@ async def mood_check(payload: MoodCheckRequest) -> MoodCheckResponse:
         posts_analyzed=len(texts),
         positive_ratio=verdict.positive_ratio,
         negative_ratio=verdict.negative_ratio,
-        provider=provider.name,
+        provider=answered_by,
         degraded=degraded,
     )

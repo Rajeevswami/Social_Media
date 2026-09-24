@@ -1,6 +1,7 @@
 """Social graph + engagement API."""
 from __future__ import annotations
 
+from django.http import Http404
 from django.shortcuts import get_object_or_404
 from drf_spectacular.utils import OpenApiResponse, extend_schema
 from rest_framework import generics, mixins, status
@@ -45,12 +46,19 @@ class FollowerListView(generics.ListAPIView):
     def get_queryset(self):
         if getattr(self, "swagger_fake_view", False):
             return Follow.objects.none()
-        user = get_object_or_404(User, username=self.kwargs["username"])
+        user = self._visible_profile()
         return (
             Follow.objects.filter(followee=user, is_active=True)
             .select_related("follower", "followee")
             .order_by("-created_at")
         )
+
+    def _visible_profile(self):
+        """404 rather than leak a private account's social graph."""
+        user = get_object_or_404(User, username=self.kwargs["username"])
+        if not user.can_view(self.request.user):
+            raise Http404
+        return user
 
 
 class FollowingListView(generics.ListAPIView):
@@ -60,12 +68,18 @@ class FollowingListView(generics.ListAPIView):
     def get_queryset(self):
         if getattr(self, "swagger_fake_view", False):
             return Follow.objects.none()
-        user = get_object_or_404(User, username=self.kwargs["username"])
+        user = self._visible_profile()
         return (
             Follow.objects.filter(follower=user, is_active=True)
             .select_related("follower", "followee")
             .order_by("-created_at")
         )
+
+    def _visible_profile(self):
+        user = get_object_or_404(User, username=self.kwargs["username"])
+        if not user.can_view(self.request.user):
+            raise Http404
+        return user
 
 
 class FollowRequestListView(generics.ListAPIView):
@@ -115,18 +129,30 @@ class CommentListCreateView(mixins.ListModelMixin, generics.GenericAPIView):
     serializer_class = CommentSerializer
     permission_classes = (IsAuthenticated,)
 
+    def get_post(self):
+        """Comments inherit the post's visibility - enforced here explicitly.
+
+        Reading a private account's comments used to be blocked only as a side
+        effect of `get_serializer_context()` raising 404, which is far too
+        indirect to rely on: any future refactor that stops calling the
+        serializer context would silently open the hole.
+        """
+        if not hasattr(self, "_post"):
+            self._post = get_object_or_404(Post.objects.visible_to(self.request.user), pk=self.kwargs["pk"])
+        return self._post
+
     def get_queryset(self):
         if getattr(self, "swagger_fake_view", False):
             return Comment.objects.none()
         return (
-            Comment.objects.filter(post_id=self.kwargs["pk"], parent__isnull=True)
+            Comment.objects.filter(post=self.get_post(), parent__isnull=True)
             .select_related("author")
             .prefetch_related("replies__author")
         )
 
     def get_serializer_context(self):
         context = super().get_serializer_context()
-        context["post"] = get_object_or_404(Post.objects.visible_to(self.request.user), pk=self.kwargs["pk"])
+        context["post"] = self.get_post()
         return context
 
     def get(self, request, *args, **kwargs):

@@ -66,9 +66,14 @@ class Post(TimeStampedModel):
             models.Index(fields=("moderation_status",)),
         ]
         constraints = [
+            # An unset ImageField stores '' rather than NULL, so testing
+            # `image__isnull=False` alone would make this constraint always
+            # true and therefore useless. Both the NULL and '' cases must be
+            # excluded for the "has an image" branch to mean anything.
             models.CheckConstraint(
                 name="post_requires_text_or_image",
-                condition=models.Q(content__gt="") | models.Q(image__isnull=False),
+                condition=models.Q(content__gt="")
+                | (models.Q(image__isnull=False) & ~models.Q(image="")),
             )
         ]
 

@@ -1,6 +1,8 @@
-"""Test settings: in-memory DB, eager Celery, fast password hashing."""
+"""Test settings: in-memory DB (or a real server), eager Celery, fast hashing."""
+import dj_database_url
+
 from social_media.settings.base import *  # noqa: F401,F403
-from social_media.settings.base import BASE_DIR
+from social_media.settings.base import BASE_DIR, config
 
 DEBUG = False
 ALLOWED_HOSTS = ["*"]
@@ -9,12 +11,26 @@ ALLOWED_HOSTS = ["*"]
 # about the missing ./staticfiles output directory).
 MIDDLEWARE = [m for m in MIDDLEWARE if "whitenoise" not in m]  # noqa: F405
 
-DATABASES = {
-    "default": {
-        "ENGINE": "django.db.backends.sqlite3",
-        "NAME": ":memory:",
+# Tests run on in-memory SQLite by default. Point TEST_DATABASE_URL (or
+# DATABASE_URL) at a real server to run the same suite against Postgres:
+#
+#   TEST_DATABASE_URL=postgres://social_media:social_media@127.0.0.1:5432/social_media pytest
+#
+# Django creates/drops its own `test_*` database, so the target user needs
+# CREATEDB (the compose `social_media` role has it).
+_test_db_url = config("TEST_DATABASE_URL", default=config("DATABASE_URL", default=""))
+
+if _test_db_url:
+    DATABASES = {
+        "default": dj_database_url.parse(_test_db_url, conn_max_age=0, conn_health_checks=True)
     }
-}
+else:
+    DATABASES = {
+        "default": {
+            "ENGINE": "django.db.backends.sqlite3",
+            "NAME": ":memory:",
+        }
+    }
 
 # Run Celery tasks inline so tests exercise the real task code without a broker.
 # Propagates stays False: with it True, Celery re-raises `Retry` to the caller

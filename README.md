@@ -47,7 +47,7 @@ Two deployable services, one repo, independent lifecycles.
                                     ▼
                         OpenAI  /  HF Inference API
 
-  Celery beat ──nightly 02:30──▶ mood sweep ──▶ MoodCheck ──▶ 3-day streak? ──▶ nudge
+  Celery beat ──nightly (MOOD_CHECK_HOUR:MINUTE)──▶ mood sweep ──▶ MoodCheck ──▶ 3-day streak? ──▶ nudge
 ```
 
 **Why this split.** Moderation and generation are slow, flaky and paid. Keeping them in a
@@ -66,7 +66,7 @@ own. Django never blocks on it: post creation enqueues a Celery task and returns
 | **social** | Follow/unfollow, follow *requests* for private accounts (accept/reject), likes (idempotent), threaded comments, notifications on every interaction |
 | **notifications** | DB-backed inbox, unread badge (server-rendered + polled), mark read / mark all read, moderation + nudge notifications |
 | **ai_companion** | Post moderation pipeline, caption suggestions, nightly mood sweep, dismissible wellbeing nudge, per-user rate-limited proxy endpoints |
-| **Cross-cutting** | Structured JSON logs with request-id correlation, uniform DRF error envelope, DRF throttles, CORS, OpenAPI schema at `/api/docs/`, 160 tests |
+| **Cross-cutting** | Structured JSON logs with request-id correlation, uniform DRF error envelope, DRF throttles, CORS, OpenAPI schema at `/api/docs/`, 212 tests |
 
 ---
 
@@ -112,11 +112,23 @@ celery -A social_media worker -l info -Q default,ai
 celery -A social_media beat   -l info            # nightly mood sweep
 ```
 
+`CELERY_VISIBILITY_TIMEOUT` (default **600 s**) controls how long an unacknowledged task
+stays invisible in Redis before another worker picks it up. Celery's own default is 3600 s,
+which would leave a post unmoderated for up to an hour if a worker is killed mid-task. Keep
+it comfortably above your longest task runtime or a slow-but-alive task will run twice.
+
 ### Docker Compose (everything at once)
 
 ```bash
 docker compose up --build     # web:8000  ai:8001  postgres:5432  redis:6379
 ```
+
+> **Honest caveat:** the Dockerfiles and `docker-compose.yml` in this repo were written and
+> statically checked (base images, referenced files, pinned servers, health endpoints,
+> `depends_on` graph, and the build-time `collectstatic` step, which was executed for real),
+> but **no image was ever built or run here** — this environment has no container runtime
+> (`docker`/`podman`/`runc` absent, no socket, `apt` blocked). Treat `docker compose up` as
+> unverified until you run it on a machine with Docker.
 
 ---
 
@@ -207,6 +219,9 @@ All secrets come from the environment (`python-decouple` on the Django side,
 | `DATABASE_URL` | SQLite | Postgres DSN in production |
 | `REDIS_URL` / `CELERY_BROKER_URL` | `redis://localhost:6379/0` | Broker + result backend |
 | `CELERY_TASK_ALWAYS_EAGER` | `True` (dev) | Run tasks inline; set `False` with a real broker |
+| `CELERY_VISIBILITY_TIMEOUT` | `600` | Seconds before an unacked task is redelivered |
+| `CELERY_TIMEZONE` | `UTC` | Timezone Celery beat/eta use |
+| `MOOD_CHECK_HOUR` / `MOOD_CHECK_MINUTE` | `2` / `30` | When the nightly mood sweep runs |
 | `AI_SERVICE_BASE_URL` / `AI_SERVICE_API_KEY` | localhost | Django → AI service |
 | `AI_RATE_LIMIT_PER_USER` | `20/hour` | Django-side AI budget |
 | `MODERATION_POLICY` | `auto_publish` | `hold_unsafe` to hold instead |
@@ -224,8 +239,8 @@ All secrets come from the environment (`python-decouple` on the Django side,
 ## Tests & lint
 
 ```bash
-pytest                                   # 106 Django tests
-cd ai_service && pytest                  # 54 AI service tests
+pytest                                   # 143 Django tests
+cd ai_service && pytest                  #  69 AI service tests
 ruff check .                             # lint (both configs)
 python manage.py check
 python manage.py makemigrations --check --dry-run
@@ -236,10 +251,49 @@ inline; the AI service is replaced by an `httpx.MockTransport`, so the real clie
 retries, timeouts, error mapping) is still exercised. The AI service tests use
 `fastapi.TestClient` with no network access.
 
+**Run the Django suite against both engines.** `common/tests/test_db_parity.py` asserts the
+things that actually differ between SQLite and Postgres — feed query counts, JSONField
+round-tripping, CHECK/UNIQUE constraints, ordering and unicode. It found a real bug: the
+`post_requires_text_or_image` CHECK constraint was dead code because Django stores `''` (not
+`NULL`) for an unset `ImageField`, so the guard never fired.
+
+```bash
+pytest                                                              # SQLite
+TEST_DATABASE_URL=postgres://user:pass@localhost:5432/db pytest     # PostgreSQL
+```
+
 Covered: JWT lifecycle incl. blacklisting, feed/privacy rules, ownership permissions,
-moderation state machine (safe/unsafe/hold/timeout/outage/malformed JSON), like and follow
-idempotency, follow requests, notifications, nudge guardrails (threshold, cooldown, streak
-reset), throttling, and Pydantic contract validation.
+private-account graph privacy, moderation state machine (safe/unsafe/hold/timeout/outage/
+malformed JSON), like and follow idempotency, follow requests, notifications, nudge
+guardrails (threshold, cooldown, streak reset), throttling, provider degradation, and
+Pydantic contract validation.
+
+---
+
+## Verification status
+
+What was actually executed against running services (Postgres 16.2 + Redis + real prefork
+Celery workers + the FastAPI service over HTTP), not just in tests:
+
+| Scenario | Result |
+|---|---|
+| Safe post through a real broker | `pending` at response time → `approved` a few seconds later |
+| Unsafe post | `flagged`, `flags: ["toxicity"]`, reason recorded, author notified |
+| `MODERATION_POLICY=hold_unsafe` | post becomes `held`, absent from every feed, **still visible to its author with the reason** |
+| Worker SIGKILLed mid-task | message survives in Redis `unacked`; a new worker receives the *same* task id and finishes it — no silent loss |
+| Celery beat (real process) | fires on schedule → sweep → per-user task → `/mood-check` → `MoodCheck` row stored |
+| AI service misconfigured (`PROVIDER=huggingface`, no token) | `/health` reports `degraded_mode: true`, responses report `degraded: true`, `provider: heuristic` |
+| `collectstatic` under `DJANGO_ENV=prod` | succeeds, writes the `staticfiles.json` manifest `ManifestStaticFilesStorage` needs |
+
+**Known gaps, stated plainly:**
+
+* **No hosted AI provider was ever called.** No `OPENAI_API_KEY` or `HF_API_TOKEN` exists in
+  this environment, so every real request above was served by the local heuristic. The OpenAI
+  and Hugging Face providers are covered by tests that stub the HTTP layer — the wire format
+  is asserted against our *reading* of those APIs, not against live model responses.
+* **Docker is unverified** (see the caveat above).
+* Migrations were applied to a real Postgres 16.2 and to SQLite; no other database version
+  was tested.
 
 ---
 
@@ -287,4 +341,14 @@ infra/               Redis image for Render
   fan-out is a one-line addition in `notifications.services.notify()`.
 * **`with_counts()` prefetch** on every feed query to avoid N+1 on like/comment counts.
 * **Heuristic provider as a first-class fallback** — moderation stays available (and free)
-  when a hosted model is down; `degraded: true` keeps the audit trail honest.
+  when a hosted model is down; `degraded: true` keeps the audit trail honest, including when
+  the configured provider could not be built at all (a missing `HF_API_TOKEN` must not look
+  like a healthy heuristic deployment).
+* **`User.can_view()` is the single source of truth for privacy** — profile, posts, comments
+  and the follower/following graph all ask the same method, so the HTML views and the API
+  cannot drift. A private account's social graph is private too.
+* **A held post stays reachable by its author and by staff.** `PostQuerySet.visible_to()`
+  used to funnel through `published()`, which dropped held posts unconditionally, so under
+  `hold_unsafe` the author got a 404 for their own post and could not see *why* it was held.
+  Held posts are excluded from every feed but never from the author's own view — holding is
+  not silent deletion.
