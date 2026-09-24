@@ -1,0 +1,57 @@
+{% extends "base.html" %}
+{% load humanize %}
+{% block title %}{{ profile.username }} · {{ SITE_NAME }}{% endblock %}
+{% block content %}
+<div class="card shadow-sm mb-4">
+  <div class="card-body p-4">
+    <div class="d-flex flex-wrap gap-4 align-items-center">
+      {% if profile.avatar %}
+        <img src="{{ profile.avatar.url }}" class="avatar-lg rounded-circle" alt="{{ profile.username }} avatar">
+      {% else %}
+        <span class="avatar-lg avatar-fallback rounded-circle">{{ profile.initials }}</span>
+      {% endif %}
+      <div class="flex-grow-1">
+        <h1 class="h4 mb-1">
+          {{ profile.profile_name }}
+          {% if profile.is_verified %}<i class="bi bi-patch-check-fill text-primary" title="Verified"></i>{% endif %}
+          {% if profile.is_private %}<i class="bi bi-lock-fill text-secondary" title="Private account"></i>{% endif %}
+        </h1>
+        <p class="text-secondary mb-2">@{{ profile.username }}</p>
+        {% if profile.bio %}<p class="mb-2">{{ profile.bio|linebreaksbr }}</p>{% endif %}
+        <div class="d-flex gap-3 small text-secondary flex-wrap">
+          {% if profile.location %}<span><i class="bi bi-geo-alt"></i> {{ profile.location }}</span>{% endif %}
+          {% if profile.website %}<a href="{{ profile.website }}" rel="noopener" target="_blank"><i class="bi bi-link-45deg"></i> {{ profile.website }}</a>{% endif %}
+          <span><i class="bi bi-calendar3"></i> Joined {{ profile.date_joined|date:"M Y" }}</span>
+        </div>
+      </div>
+      <div class="text-center">
+        <div class="d-flex gap-4 mb-3">
+          <div><div class="fw-bold">{{ profile.followers_count }}</div><div class="small text-secondary">Followers</div></div>
+          <div><div class="fw-bold">{{ profile.following_count }}</div><div class="small text-secondary">Following</div></div>
+        </div>
+        {% if is_owner %}
+          <div class="d-flex gap-2">
+            <a class="btn btn-outline-primary btn-sm" href="{% url 'posts:compose' %}"><i class="bi bi-plus-lg"></i> New post</a>
+            <a class="btn btn-outline-secondary btn-sm" href="{% url 'accounts:profile_edit' %}">Edit profile</a>
+          </div>
+        {% elif user.is_authenticated %}
+          <button class="btn btn-sm {% if is_following %}btn-outline-secondary{% else %}btn-primary{% endif %}"
+                  data-follow-toggle
+                  data-username="{{ profile.username }}"
+                  data-is-following="{{ is_following|yesno:'true,false' }}">
+            {% if is_following %}Unfollow{% else %}Follow{% endif %}
+          </button>
+        {% endif %}
+      </div>
+    </div>
+  </div>
+</div>
+
+{% if not can_view %}
+  <div class="alert alert-warning"><i class="bi bi-lock"></i> This account is private. Follow to see posts.</div>
+{% elif posts %}
+  {% include "posts/_post_list.html" with posts=posts %}
+{% else %}
+  <div class="text-center text-secondary py-5"><i class="bi bi-images fs-1 d-block mb-2"></i>No posts yet.</div>
+{% endif %}
+{% endblock %}

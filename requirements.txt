@@ -1,3 +1,26 @@
-Django>=5.0
-Pillow>=10.0
+# Django core app. AI microservice deps live in ai_service/requirements.txt.
+Django>=5.2,<6.0
+djangorestframework>=3.15
+djangorestframework-simplejwt>=5.3
+django-cors-headers>=4.3
+django-filter>=24.2
+drf-spectacular>=0.27
+
+# Config / env
+python-decouple>=3.8
+dj-database-url>=2.1
+
+# Async task queue
+celery[redis]>=5.4
+redis>=5.0
+
+# HTTP client for the AI microservice
+httpx>=0.27
+
+# Media & serving
+Pillow>=10.3
+whitenoise>=6.6
 gunicorn>=21.2
+
+# Postgres driver (SQLite is used when DATABASE_URL is empty)
+psycopg2-binary>=2.9

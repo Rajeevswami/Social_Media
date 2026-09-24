@@ -1,0 +1,26 @@
+{% extends "base.html" %}
+{% block title %}Feed · {{ SITE_NAME }}{% endblock %}
+{% block content %}
+<div class="feed-column">
+  {% include "ai_companion/_nudge.html" %}
+
+  <div class="card shadow-sm mb-3">
+    <div class="card-body">
+      <form method="post" action="{% url 'posts:compose' %}" enctype="multipart/form-data">
+        {% csrf_token %}
+        <div class="mb-2">
+          <textarea class="form-control" name="content" rows="2" maxlength="2000"
+                    placeholder="What's happening?" data-caption-target>{{ form.content.value|default:'' }}</textarea>
+        </div>
+        <div class="d-flex flex-wrap gap-2 align-items-center">
+          <input class="form-control form-control-sm w-auto" type="file" name="image" accept="image/*">
+          <input class="form-control form-control-sm w-auto" type="text" name="location" maxlength="120" placeholder="Location">
+          <button class="btn btn-primary btn-sm ms-auto" type="submit">Post</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  {% include "posts/_post_list.html" %}
+</div>
+{% endblock %}

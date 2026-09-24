@@ -1,0 +1,21 @@
+{% if active_nudge %}
+  <div class="card nudge-card shadow-sm mb-3">
+    <div class="card-body d-flex gap-3 align-items-start">
+      <i class="bi bi-heart-pulse fs-4 text-info"></i>
+      <div class="flex-grow-1">
+        <h2 class="h6 mb-1">Just checking in</h2>
+        <p class="mb-2 small">{{ active_nudge.message|linebreaksbr }}</p>
+        <p class="small text-secondary mb-2">
+          This is an automated, non-medical check-in based only on the tone of public posts. It is not a diagnosis.
+        </p>
+        <div class="d-flex gap-2">
+          <a class="btn btn-sm btn-outline-info" href="{% url 'ai_companion:nudge' %}">View check-ins</a>
+          <form method="post" action="{% url 'ai_companion:nudge_dismiss' active_nudge.pk %}">
+            {% csrf_token %}
+            <button class="btn btn-sm btn-link text-secondary" type="submit">Dismiss</button>
+          </form>
+        </div>
+      </div>
+    </div>
+  </div>
+{% endif %}

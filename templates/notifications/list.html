@@ -1,0 +1,36 @@
+{% extends "base.html" %}
+{% block title %}Notifications · {{ SITE_NAME }}{% endblock %}
+{% block content %}
+<div class="row justify-content-center">
+  <div class="col-lg-7">
+    <div class="d-flex justify-content-between align-items-center mb-3">
+      <h1 class="h4 mb-0">Notifications</h1>
+      <form method="post" action="{% url 'notifications:read_all' %}">
+        {% csrf_token %}
+        <button class="btn btn-sm btn-outline-secondary" type="submit">Mark all read</button>
+      </form>
+    </div>
+    <div class="list-group shadow-sm">
+      {% for item in notifications %}
+        <a class="list-group-item list-group-item-action d-flex gap-3 align-items-start {% if not item.is_read %}bg-body-secondary{% endif %}"
+           href="{{ item.link }}">
+          <span class="fs-5">
+            {% if item.notification_type == 'like' %}<i class="bi bi-heart-fill text-danger"></i>
+            {% elif item.notification_type == 'comment' %}<i class="bi bi-chat-dots text-primary"></i>
+            {% elif item.notification_type == 'follow' %}<i class="bi bi-person-plus text-success"></i>
+            {% elif item.notification_type == 'nudge' %}<i class="bi bi-heart-pulse text-info"></i>
+            {% elif item.notification_type == 'moderation' %}<i class="bi bi-shield-exclamation text-warning"></i>
+            {% else %}<i class="bi bi-bell"></i>{% endif %}
+          </span>
+          <span class="flex-grow-1">
+            <span class="d-block">{{ item.message }}</span>
+            <small class="text-secondary">{{ item.created_at|timesince }} ago</small>
+          </span>
+        </a>
+      {% empty %}
+        <div class="list-group-item text-secondary text-center py-4">Nothing here yet.</div>
+      {% endfor %}
+    </div>
+  </div>
+</div>
+{% endblock %}

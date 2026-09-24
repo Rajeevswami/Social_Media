@@ -1,0 +1,28 @@
+{% extends "base.html" %}
+{% block title %}{{ profile.username }} · {{ kind }}{% endblock %}
+{% block content %}
+<div class="row justify-content-center">
+  <div class="col-lg-6">
+    <h1 class="h4 mb-3">
+      <a class="text-decoration-none" href="{% url 'accounts:profile' profile.username %}">@{{ profile.username }}</a>
+      &middot; {{ kind|title }}
+    </h1>
+    <div class="list-group shadow-sm">
+      {% for person in people %}
+        <a class="list-group-item list-group-item-action d-flex align-items-center gap-2"
+           href="{% url 'accounts:profile' person.username %}">
+          {% if person.avatar %}
+            <img src="{{ person.avatar.url }}" class="avatar-sm rounded-circle" alt="">
+          {% else %}
+            <span class="avatar-sm avatar-fallback rounded-circle">{{ person.initials }}</span>
+          {% endif %}
+          <span class="flex-grow-1">{{ person.profile_name }}</span>
+          <span class="text-secondary small">@{{ person.username }}</span>
+        </a>
+      {% empty %}
+        <div class="list-group-item text-secondary">No one here yet.</div>
+      {% endfor %}
+    </div>
+  </div>
+</div>
+{% endblock %}

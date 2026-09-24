@@ -1,0 +1,31 @@
+{% extends "base.html" %}
+{% block title %}Follow requests · {{ SITE_NAME }}{% endblock %}
+{% block content %}
+<div class="row justify-content-center">
+  <div class="col-lg-6">
+    <h1 class="h4 mb-3">Follow requests</h1>
+    <div class="list-group shadow-sm">
+      {% for edge in requests %}
+        <div class="list-group-item d-flex align-items-center gap-2">
+          {% if edge.follower.avatar %}
+            <img src="{{ edge.follower.avatar.url }}" class="avatar-sm rounded-circle" alt="">
+          {% else %}
+            <span class="avatar-sm avatar-fallback rounded-circle">{{ edge.follower.initials }}</span>
+          {% endif %}
+          <a class="flex-grow-1 text-decoration-none" href="{% url 'accounts:profile' edge.follower.username %}">
+            {{ edge.follower.profile_name }} <span class="text-secondary small">@{{ edge.follower.username }}</span>
+          </a>
+          <form method="post" action="{% url 'social:follow_request_decision' edge.follower.id 'accept' %}">
+            {% csrf_token %}<button class="btn btn-sm btn-primary" type="submit">Accept</button>
+          </form>
+          <form method="post" action="{% url 'social:follow_request_decision' edge.follower.id 'reject' %}">
+            {% csrf_token %}<button class="btn btn-sm btn-outline-secondary" type="submit">Decline</button>
+          </form>
+        </div>
+      {% empty %}
+        <div class="list-group-item text-secondary">No pending requests.</div>
+      {% endfor %}
+    </div>
+  </div>
+</div>
+{% endblock %}

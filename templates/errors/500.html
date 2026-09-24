@@ -1,0 +1,9 @@
+{% extends "base.html" %}
+{% block title %}Server error{% endblock %}
+{% block content %}
+<div class="text-center py-5">
+  <h1 class="display-4">500</h1>
+  <p class="text-secondary">Something went wrong on our side. The team has been notified.</p>
+  <a class="btn btn-primary" href="{% url 'posts:feed' %}">Back to feed</a>
+</div>
+{% endblock %}
